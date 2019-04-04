@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import pytest
+
 from snapshottest.file import FileSnapshot
 
 
@@ -58,3 +60,8 @@ def test_multiple_files(snapshot, tmpdir):
     temp_file1 = tmpdir.join('example2.txt')
     temp_file1.write('Hello, world 2!')
     snapshot.assert_match(FileSnapshot(str(temp_file1)))
+
+
+def test_unused_snapshot_should_be_reject_in_strict_mode(snapshot):
+    with pytest.raises(AssertionError, match="Saving snapshots not allowed in strict mode."):
+        snapshot.assert_match(False)

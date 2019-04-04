@@ -9,9 +9,9 @@ cache: pip
 install:
 - pip install -e .[test]
 script:
-- py.test --cov=snapshottest tests examples/pytest
+- py.test --cov=snapshottest --snapshot-strict tests examples/pytest
 # Run Pytest Example
-- py.test examples/pytest
+- py.test --snapshot-strict examples/pytest
 # Run Unittest Example
 - python examples/unittest/test_demo.py
 # Run nose

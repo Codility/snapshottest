@@ -4,6 +4,7 @@ import os
 import imp
 from collections import defaultdict
 import logging
+from typing import Set, Iterable
 
 from .snapshot import Snapshot
 from .formatter import Formatter
@@ -48,7 +49,7 @@ class SnapshotModule(object):
             del self.snapshots[unvisited]
 
     @property
-    def unvisited_snapshots(self):
+    def unvisited_snapshots(self) -> Set[str]:
         return set(self.snapshots.keys()) - self.visited_snapshots
 
     @classmethod
@@ -63,7 +64,7 @@ class SnapshotModule(object):
         return unvisited_snapshots, unvisited_modules
 
     @classmethod
-    def get_modules(cls):
+    def get_modules(cls) -> Iterable["SnapshotModule"]:
         return SnapshotModule._snapshot_modules.values()
 
     @classmethod
@@ -185,13 +186,22 @@ snapshots = Snapshot()
 
         return cls._snapshot_modules[test_filepath]
 
+    @classmethod
+    def all_unvisited_snapshots(cls) -> Set[str]:
+        unvisited: Set[str] = set()
+        for module in cls.get_modules():
+            unvisited |= {f"{module.filepath}::{snapshot}" for snapshot in module.unvisited_snapshots}
+
+        return unvisited
+
 
 class SnapshotTest(object):
     _current_tester = None
 
-    def __init__(self):
+    def __init__(self, strict=False):
         self.curr_snapshot = ''
         self.snapshot_counter = 1
+        self.strict = strict
 
     @property
     def module(self):
@@ -220,6 +230,7 @@ class SnapshotTest(object):
         self.module.mark_failed(self.test_name)
 
     def store(self, data):
+        assert not self.strict, "Saving snapshots not allowed in strict mode."
         formatter = Formatter.get_formatter(data)
         data = formatter.store(self, data)
         self.module[self.test_name] = data

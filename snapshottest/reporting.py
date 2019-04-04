@@ -4,7 +4,7 @@ from termcolor import colored
 from .module import SnapshotModule
 
 
-def reporting_lines(testing_cli):
+def reporting_lines(testing_cli, strict=False):
     successful_snapshots = SnapshotModule.stats_successful_snapshots()
     bold = ['bold']
     if successful_snapshots:
@@ -26,12 +26,20 @@ def reporting_lines(testing_cli):
             colored('{} snapshots failed', 'red', attrs=bold) + ' in {} test suites. '
             + inspect_str
         ).format(*failed_snapshots)
-    unvisited_snapshots = SnapshotModule.stats_unvisited_snapshots()
-    if unvisited_snapshots[0]:
-        yield (
-            colored('{} snapshots deprecated', 'yellow', attrs=bold) + ' in {} test suites. '
-            + inspect_str
-        ).format(*unvisited_snapshots)
+    unvisited_snapshots = SnapshotModule.all_unvisited_snapshots()
+    if unvisited_snapshots:
+        if strict:
+            error_msg = colored(f'ERROR: {len(unvisited_snapshots)} snapshots unused.', 'red', attrs=bold)
+            comment = colored("In strict mode all snapshots must be used.",attrs=['dark'])
+            yield f"{error_msg} {comment}"
+            yield colored("Unused snapshots:", "red", attrs=bold)
+            yield from unvisited_snapshots
+
+        else:
+            yield (
+                colored('{} snapshots deprecated', 'yellow', attrs=bold) + ' in {} test suites. '
+                + inspect_str
+            ).format(*unvisited_snapshots)
 
 
 def diff_report(left, right):

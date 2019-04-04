@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import pytest
 
 from snapshottest import Snapshot
-from snapshottest.module import SnapshotModule
+from snapshottest.module import SnapshotModule, SnapshotTest
 
 
 class TestSnapshotModuleLoading(object):
@@ -27,3 +27,29 @@ class TestSnapshotModuleLoading(object):
         module = SnapshotModule("tests.snapshots.snap_error", str(filepath))
         with pytest.raises(SyntaxError):
             module.load_snapshots()
+
+
+
+class MockSnapshotTest(SnapshotTest):
+    def __init__(self, *, strict=False, module: SnapshotModule, test_name: str) -> None:
+        super().__init__(strict=strict)
+        self._module = module
+        self._test_name = test_name
+
+    @property
+    def module(self) -> SnapshotModule:
+        return self._module
+
+    @property
+    def test_name(self) -> str:
+        return self._test_name
+
+
+class TestStrictSnapshotModule:
+    def test_should_fail_if_new_snapshots_appear(self, tmpdir):
+        file_with_snapshots = tmpdir.join("snap_new.py")
+        module = SnapshotModule(module="tests.snapshots.snap_new", filepath=str(file_with_snapshots))
+        test = MockSnapshotTest(strict=True, module=module, test_name="Some test")
+
+        with pytest.raises(AssertionError, match="Saving snapshots not allowed in strict mode."):
+            test.assert_match(False)

@@ -21,13 +21,19 @@ def pytest_addoption(parser):
         default=False,
         help='Dump diagnostic and progress information.'
     )
+    group.addoption(
+        '--snapshot-strict',
+        action='store_true',
+        default=False,
+        help='Fails test if new snapshot is created or some snapshot is unused.'
+    )
 
 
 class PyTestSnapshotTest(SnapshotTest):
 
-    def __init__(self, request=None):
+    def __init__(self, request=None, strict=False):
         self.request = request
-        super(PyTestSnapshotTest, self).__init__()
+        super(PyTestSnapshotTest, self).__init__(strict=strict)
 
     @property
     def module(self):
@@ -50,6 +56,7 @@ class PyTestSnapshotTest(SnapshotTest):
 class SnapshotSession(object):
     def __init__(self, config):
         self.verbose = config.getoption("snapshot_verbose")
+        self.strict = config.option.snapshot_strict
         self.config = config
 
     def display(self, tr):
@@ -58,7 +65,7 @@ class SnapshotSession(object):
 
         tr.write_sep("=", "SnapshotTest summary")
 
-        for line in reporting_lines('pytest'):
+        for line in reporting_lines('pytest', strict=self.strict):
             tr.write_line(line)
 
 
@@ -69,7 +76,8 @@ def pytest_assertrepr_compare(op, left, right):
 
 @pytest.fixture
 def snapshot(request):
-    with PyTestSnapshotTest(request) as snapshot_test:
+    strict = request.config.option.snapshot_strict
+    with PyTestSnapshotTest(request, strict=strict) as snapshot_test:
         yield snapshot_test
 
 
@@ -80,6 +88,20 @@ def pytest_terminal_summary(terminalreporter):
             module.save()
 
     terminalreporter.config._snapshotsession.display(terminalreporter)
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_sessionfinish(session, exitstatus):
+    from _pytest.main import EXIT_NOTESTSCOLLECTED, EXIT_OK, EXIT_TESTSFAILED
+
+    unvisited_snapshots = SnapshotModule.all_unvisited_snapshots()
+    if not session.config.option.snapshot_strict or not unvisited_snapshots:
+        return
+
+    if exitstatus not in (EXIT_NOTESTSCOLLECTED, EXIT_OK, EXIT_TESTSFAILED):
+        return
+
+    session.exitstatus = EXIT_TESTSFAILED
 
 
 @pytest.mark.trylast  # force the other plugins to initialise, fixes issue with capture not being properly initialised
