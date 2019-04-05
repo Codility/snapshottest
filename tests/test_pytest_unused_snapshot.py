@@ -3,7 +3,7 @@ import subprocess
 
 def test_suite_should_fail_for_unused_snapshots(snapshot):
     completed_process = subprocess.run(
-        ["pytest", "--snapshot-strict", "-v", "examples/pytest/unused_snapshot/command.py"],
+        ["pytest", "--snapshot-strict", "-v", "tests/unused_snapshot/command.py"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf-8"
